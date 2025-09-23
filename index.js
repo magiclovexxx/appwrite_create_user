@@ -40,7 +40,6 @@ export default async ({ req, res, log, error }) => {
 
     // 4. Prepare the user profile data for the database
     const userId = user.$id;
-
     const trialEndDate = new Date();
     trialEndDate.setDate(trialEndDate.getDate() + 14);
 
