@@ -1,4 +1,14 @@
 {
+  "name": "story_board",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "build": "echo 'no build step'"
+  },
+  "dependencies": {
+    "node-appwrite": "^13.0.0"
+  },
   "type": "module",
   "dependencies": {
     "node-appwrite": "^13.0.0"
