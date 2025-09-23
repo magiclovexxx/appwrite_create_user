@@ -1,77 +1,57 @@
-// File: createUserProfile/src/index.js
-
 import { Client, Databases, ID, Permission, Role } from 'node-appwrite';
 
 // This is your Appwrite function
-// It's executed each time a new user is created
+// It's executed each time a user is created
 export default async ({ req, res, log, error }) => {
-    log("Function createUserProfile started execution.");
+  log('User creation function triggered...');
 
-    // 1. Get the new user's data from the trigger payload
-    let user;
-    try {
-        // Appwrite event data is in req.body
-        user = JSON.parse(req.body);
-        log(`Processing user: ${user.$id} (${user.email})`);
-    } catch (e) {
-        error("Could not parse user data from request body.");
-        return res.json({ success: false, message: 'Invalid request body' }, 400);
-    }
+  // Appwrite passes event data in an environment variable.
+  const eventData = process.env.APPWRITE_FUNCTION_EVENT_DATA;
+  if (!eventData) {
+    error("FATAL: Environment variable APPWRITE_FUNCTION_EVENT_DATA is not set.");
+    return res.json({ success: false, error: "Event data not found." }, 500);
+  }
+  
+  try {
+    const user = JSON.parse(eventData);
+    log(`Processing user: ${user.name} (ID: ${user.$id})`);
 
-    // 2. Check for required environment variables from the Appwrite console
-    if (
-        !process.env.APPWRITE_DATABASE_ID ||
-        !process.env.USERS_COLLECTION_ID ||
-        !process.env.APPWRITE_API_KEY ||
-        !process.env.APPWRITE_ENDPOINT ||
-        !process.env.APPWRITE_PROJECT_ID
-    ) {
-        error("One or more environment variables are missing.");
-        return res.json({ success: false, message: 'Function not configured' }, 500);
-    }
-
-    // 3. Initialize the Appwrite Node.js SDK
+    // Initialize the Appwrite client
     const client = new Client()
-        .setEndpoint(process.env.APPWRITE_ENDPOINT)
-        .setProject(process.env.APPWRITE_PROJECT_ID)
-        .setKey(process.env.APPWRITE_API_KEY);
+      .setEndpoint(process.env.APPWRITE_ENDPOINT)
+      .setProject(process.env.APPWRITE_PROJECT_ID)
+      .setKey(process.env.APPWRITE_API_KEY);
 
     const databases = new Databases(client);
 
-    // 4. Prepare the user profile data for the database
-    const userId = user.$id;
-    const trialEndDate = new Date();
-    trialEndDate.setDate(trialEndDate.getDate() + 14);
+    const databaseId = process.env.APPWRITE_DATABASE_ID;
+    const usersCollectionId = 'users'; // Make sure this matches your collection ID
 
-    const userProfileData = {
-        userId: userId,
+    // Create the user profile document
+    await databases.createDocument(
+      databaseId,
+      usersCollectionId,
+      ID.unique(), // Use a new unique ID for the document
+      {
+        userId: user.$id, // Link to the auth user
         email: user.email,
         name: user.name,
-        subscriptionStatus: 'trial',
-        subscriptionEndDate: trialEndDate.toISOString(),
-        plan: 'free',
-        credits: 100,
-    };
+        subscriptionStatus: 'trial', // Default value
+        plan: 'free',                 // Default value
+        credits: 10,                  // Default value for new users
+      },
+      [
+        Permission.read(Role.user(user.$id)),
+        Permission.update(Role.user(user.$id)),
+        Permission.delete(Role.user(user.$id)),
+      ]
+    );
 
-    log(`Prepared profile data for user ${userId}`);
+    log(`Successfully created profile for user: ${user.$id}`);
+    return res.json({ success: true, message: "User profile created successfully." });
 
-    // 5. Create the document in the 'users' collection with specific permissions
-    try {
-        await databases.createDocument(
-            process.env.APPWRITE_DATABASE_ID,
-            process.env.USERS_COLLECTION_ID,
-            ID.unique(),
-            userProfileData,
-            [
-                Permission.read(Role.user(userId)),
-                Permission.update(Role.user(userId)),
-                Permission.delete(Role.user(userId)),
-            ]
-        );
-        log(`Successfully created profile for user ${userId}`);
-        return res.json({ success: true, message: 'User profile created' });
-    } catch (e) {
-        error(`Failed to create document for user ${userId}: ${e.message}`);
-        return res.json({ success: false, message: e.message }, 500);
-    }
+  } catch (e) {
+    error('Error creating user profile:', e);
+    return res.json({ success: false, error: e.message }, 500);
+  }
 };
