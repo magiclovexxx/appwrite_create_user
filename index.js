@@ -6,19 +6,16 @@ export default async ({ req, res, log, error }) => {
   log('User creation function triggered...');
 
   // Appwrite passes event data in an environment variable.
-  let user;
-  try {
-    user = process.env.APPWRITE_FUNCTION_EVENT_DATA
-      ? JSON.parse(process.env.APPWRITE_FUNCTION_EVENT_DATA)
-      : { message: "Test run, no event data", $id: 'test123', name: 'Test User', email: 'test@example.com' };
-  } catch (e) {
-    log('Failed to parse APPWRITE_FUNCTION_EVENT_DATA, using dummy data', e);
-    user = { message: "Test run, no event data", $id: 'test123', name: 'Test User', email: 'test@example.com' };
+  const eventData = process.env.APPWRITE_FUNCTION_EVENT_DATA;
+  if (!eventData) {
+    error("FATAL: Environment variable APPWRITE_FUNCTION_EVENT_DATA is not set.");
+    return res.json({ success: false, error: "Event data not found." }, 500);
   }
-
-  log(`Processing user: ${user.name} (ID: ${user.$id})`);
-
+  
   try {
+    const user = JSON.parse(eventData);
+    log(`Processing user: ${user.name} (ID: ${user.$id})`);
+
     // Initialize the Appwrite client
     const client = new Client()
       .setEndpoint(process.env.APPWRITE_ENDPOINT)
