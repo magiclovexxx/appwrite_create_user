@@ -4,16 +4,17 @@ import { Client, Databases, ID, Permission, Role } from 'node-appwrite';
 // It's executed each time a user is created
 export default async ({ req, res, log, error }) => {
   log('User creation function triggered...');
-
+  console.log("body: ", req.body)
   // Appwrite passes event data in an environment variable.
-  const eventData = process.env.APPWRITE_FUNCTION_EVENT_DATA;
+  let eventData = process.env.APPWRITE_FUNCTION_EVENT_DATA;
   if (!eventData) {
-    error("FATAL: Environment variable APPWRITE_FUNCTION_EVENT_DATA is not set.");
-    return res.json({ success: false, error: "Event data not found." }, 500);
+    // error("FATAL: Environment variable APPWRITE_FUNCTION_EVENT_DATA is not set.");
+    // return res.json({ success: false, error: "Event data not found." }, 500);
+    eventData = req.body
   }
-  
+  console.log("eventData: ", eventData)
   try {
-    const user = JSON.parse(eventData);
+    const user = eventData;
     log(`Processing user: ${user.name} (ID: ${user.$id})`);
 
     // Initialize the Appwrite client
